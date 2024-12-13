@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
@@ -14,44 +13,45 @@ import (
 
 func MakeMasterReadHandler(v *raft.Node) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		replica := v.HTTPNodesAddress[rand.Int()%len(v.HTTPNodesAddress)]
-
 		v.Mu.RLock()
-		newRequestBody := fmt.Sprintf(`{"lastCommittedIdx": %d}`, v.LastCommittedIdx)
-		v.Mu.RUnlock()
+		defer v.Mu.RUnlock()
+		if v.Role != raft.RoleLeader {
+			http.Error(w, "Invalid request: node is not master", http.StatusBadRequest)
+			return
+		}
 
+		newRequestBody := fmt.Sprintf(`{"lastCommittedIdx": %d}`, v.LastCommittedIdx)
 		r.Body = io.NopCloser(strings.NewReader(newRequestBody))
 		r.ContentLength = int64(len(newRequestBody))
 		r.Header.Set("Content-Type", "application/json")
 
-		http.Redirect(w, r, replica+"/read"+r.URL.Path, http.StatusFound)
+		replicaIdx := int(v.Id)
+		for replicaIdx == int(v.Id) {
+			replicaIdx = rand.Int() % len(v.HTTPNodesAddress)
+		}
+		replica := v.HTTPNodesAddress[replicaIdx]
+
+		http.Redirect(w, r, replica+"/readReplica/{id}", http.StatusFound)
 	}
 }
 
 func MakeReplicaReadHandler(v *raft.Node) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		v.Mu.Lock()
+		defer v.Mu.Unlock()
+		fmt.Println("Got a read request")
+
+		if v.Role != raft.RoleFollower {
+			http.Error(w, "Invalid request: node is not replica", http.StatusBadRequest)
+			return
+		}
+
 		ID, err := getID(r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		type reqBody struct {
-			LastCommittedIdx int64 `json:"lastCommittedIdx"`
-		}
-		var req reqBody
-		err = json.NewDecoder(r.Body).Decode(&req)
-		if err != nil {
-			http.Error(w, "Failed to parse helper data", http.StatusInternalServerError)
-			return
-		}
-
-		v.Mu.Lock()
-		defer v.Mu.Unlock()
-		if req.LastCommittedIdx > v.LastCommittedIdx {
-			http.Error(w, "Stale replica", http.StatusInternalServerError)
-			return
-		}
 		resource, ok := v.Data[models.Id(ID)]
 
 		if !ok {
@@ -59,6 +59,6 @@ func MakeReplicaReadHandler(v *raft.Node) http.HandlerFunc {
 			return
 		}
 
-		models.JSONResponse(w, http.StatusOK, resource)
+		models.JSONOKResponse(w, resource)
 	}
 }

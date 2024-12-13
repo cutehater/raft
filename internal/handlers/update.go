@@ -26,6 +26,10 @@ func MakeUpdateHandler(v *raft.Node) http.HandlerFunc {
 		}
 
 		v.Mu.Lock()
+		if v.Role != raft.RoleLeader {
+			http.Error(w, "Invalid request: node is not master", http.StatusBadRequest)
+			return
+		}
 		if _, ok := v.Data[resource.Id]; !ok {
 			v.Mu.Unlock()
 			http.Error(w, errNotFound.Error(), http.StatusBadRequest)
@@ -45,6 +49,6 @@ func MakeUpdateHandler(v *raft.Node) http.HandlerFunc {
 		v.LastCommittedIdx++
 		v.Mu.Unlock()
 
-		models.JSONResponse(w, http.StatusOK, resource)
+		models.JSONOKResponse(w, resource)
 	}
 }

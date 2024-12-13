@@ -30,5 +30,6 @@ type Node struct {
 	LastCommittedIdx int64
 	GrpcClients      []rpc.RaftNodeClient
 
-	appendEntriesMu []sync.Mutex
+	appendEntriesMu     []sync.Mutex
+	needToStartElection bool
 }

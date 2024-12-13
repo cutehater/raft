@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/gorilla/mux"
 	"google.golang.org/grpc"
 
 	"hw2/internal/handlers"
@@ -35,6 +36,7 @@ var (
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: <command> <node index>")
+		os.Exit(1)
 	}
 
 	id, err := strconv.Atoi(os.Args[1])
@@ -69,14 +71,15 @@ func startGRPCServer(id int, node *raft.Node) {
 
 func startHTTPServer(id int, node *raft.Node) {
 	address := HTTPNodesAddress[id]
+	r := mux.NewRouter()
 
-	http.HandleFunc("/create", handlers.MakePostHandler(node))
-	http.HandleFunc("/read", handlers.MakeMasterReadHandler(node))
-	http.HandleFunc("/readReplica", handlers.MakeReplicaReadHandler(node))
-	http.HandleFunc("/update", handlers.MakeUpdateHandler(node))
+	r.HandleFunc("/create", handlers.MakePostHandler(node))
+	r.HandleFunc("/read/{id}", handlers.MakeMasterReadHandler(node))
+	r.HandleFunc("/readReplica/{id}", handlers.MakeReplicaReadHandler(node))
+	r.HandleFunc("/update", handlers.MakeUpdateHandler(node))
 
 	log.Printf("HTTP server listening on %s", address)
-	if err := http.ListenAndServe(address, nil); err != nil {
+	if err := http.ListenAndServe(address, r); err != nil {
 		log.Fatalf("Failed to serve HTTP server: %v", err)
 	}
 }

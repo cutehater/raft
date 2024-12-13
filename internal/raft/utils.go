@@ -15,7 +15,7 @@ const (
 )
 
 // call under v.Mu.Lock() only
-func (v *Node) CommitChanges(lastCommitIdx int64, lastCommitTerm int64) bool {
+func (v *Node) commitChanges(lastCommitIdx int64, lastCommitTerm int64) bool {
 	if lastCommitIdx < 0 || int(lastCommitIdx) >= len(v.DataLog) ||
 		v.DataLog[lastCommitIdx].Term != lastCommitTerm {
 		return false
@@ -54,7 +54,7 @@ func (leader *Node) sendHeartbeats() {
 }
 
 func (v *Node) createGRPCClient(id int, address string) {
-	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
 		log.Fatalf("Failed to connect to node %d at %s: %v", id, address, err)
 	}
@@ -62,4 +62,5 @@ func (v *Node) createGRPCClient(id int, address string) {
 	v.Mu.Lock()
 	defer v.Mu.Unlock()
 	v.GrpcClients[id] = rpc.NewRaftNodeClient(conn)
+
 }

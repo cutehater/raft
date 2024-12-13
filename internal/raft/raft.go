@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"sync"
+	"time"
 
 	"hw2/internal/models"
 	"hw2/internal/rpc"
@@ -20,12 +21,10 @@ func NewNode(id int64, GRPCNodesAddress []string, HTTPNodesAddress []string) *No
 		LeaderId:         0,
 		Data:             make(map[models.Id]models.Value),
 		DataLog:          make([]models.LogEntry, 1),
+		GrpcClients:      make([]rpc.RaftNodeClient, len(GRPCNodesAddress)),
 
-		appendEntriesMu: make([]sync.Mutex, len(HTTPNodesAddress)),
-	}
-
-	if id == 0 {
-		node.Role = RoleLeader
+		appendEntriesMu:     make([]sync.Mutex, len(HTTPNodesAddress)),
+		needToStartElection: false,
 	}
 
 	wg := sync.WaitGroup{}
@@ -40,10 +39,18 @@ func NewNode(id int64, GRPCNodesAddress []string, HTTPNodesAddress []string) *No
 			node.createGRPCClient(i, address)
 		}()
 	}
-
 	wg.Wait()
 
-	go node.StartElectionTimeout()
+	if id == 0 {
+		node.Role = RoleLeader
+		go node.sendHeartbeats()
+	}
+
+	go func() {
+		time.Sleep(20 * time.Second)
+		node.StartElectionTimeout()
+	}()
+
 	return node
 }
 

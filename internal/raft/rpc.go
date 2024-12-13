@@ -2,6 +2,7 @@ package raft
 
 import (
 	"context"
+	"fmt"
 
 	"hw2/internal/models"
 	"hw2/internal/rpc"
@@ -17,10 +18,13 @@ func (follower *Node) AppendEntries(ctx context.Context, req *rpc.AppendEntriesI
 			Term:    follower.Term,
 		}, nil
 	} else if follower.Term < req.Term {
+		follower.Role = RoleFollower
 		follower.Term = req.Term
 		follower.LeaderId = req.LeaderId
 		follower.VotedFor = -1
 	}
+
+	follower.needToStartElection = false
 
 	if req.PrevLogIdx < 0 || int(req.PrevLogIdx) >= len(follower.DataLog) ||
 		follower.DataLog[req.PrevLogIdx].Term != req.PrevLogTerm {
@@ -39,7 +43,7 @@ func (follower *Node) AppendEntries(ctx context.Context, req *rpc.AppendEntriesI
 
 	commitTo := req.LeaderCommitIdx
 	commitTo = min(commitTo, int64(len(follower.DataLog))-1)
-	follower.CommitChanges(commitTo, follower.DataLog[commitTo].Term)
+	follower.commitChanges(commitTo, follower.DataLog[commitTo].Term)
 
 	return &rpc.AppendEntriesOut{
 		Success: true,
@@ -51,11 +55,15 @@ func (elector *Node) RequestVote(ctx context.Context, req *rpc.RequestVoteIn) (*
 	elector.Mu.Lock()
 	defer elector.Mu.Unlock()
 
+	fmt.Printf("Vote request from %d in term %d\n", req.CandidateId, req.Term)
+
 	voteGranted := false
 	if elector.Term <= req.Term && (elector.VotedFor == -1 || elector.VotedFor == req.CandidateId) && (elector.DataLog[len(elector.DataLog)-1].Term > req.LastLogTerm ||
-		elector.DataLog[len(elector.DataLog)-1].Term == req.LastLogTerm && len(elector.DataLog) <= int(req.LastLogIdx)) {
-		elector.Term = req.Term // I am not sure
+		elector.DataLog[len(elector.DataLog)-1].Term == req.LastLogTerm && len(elector.DataLog)-1 <= int(req.LastLogIdx)) {
+		elector.Term = req.Term
+		elector.Role = RoleFollower
 		elector.VotedFor = req.CandidateId
+		elector.needToStartElection = false
 		voteGranted = true
 	}
 

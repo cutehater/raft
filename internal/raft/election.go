@@ -2,6 +2,7 @@ package raft
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"math/rand"
 	"time"
@@ -17,10 +18,10 @@ func (follower *Node) StartElectionTimeout() {
 		select {
 		case <-ticker.C:
 			follower.Mu.Lock()
-			if follower.Role != RoleLeader && follower.LeaderId == -1 {
+			if follower.Role != RoleLeader && follower.needToStartElection {
 				follower.startElection()
 			} else {
-				follower.LeaderId = -1
+				follower.needToStartElection = true
 				follower.Mu.Unlock()
 			}
 		}
@@ -59,6 +60,7 @@ func (candidate *Node) startElection() {
 
 				if resp.VoteGranted {
 					votes++
+					fmt.Printf("Vote granted from %d in term %d\n", i, candidate.Term)
 					if votes == len(candidate.HTTPNodesAddress)/2+1 {
 						log.Printf("%d won Election and becoming leader\n", candidate.Id)
 						candidate.Role = RoleLeader
@@ -77,7 +79,7 @@ func (candidate *Node) startElection() {
 }
 
 func getElectionTimeout() time.Duration {
-	maxMs, minMs := 300, 150
+	maxMs, minMs := 3000, 1000
 	randomMs := rand.Intn(maxMs-minMs+1) + minMs
 	return time.Duration(randomMs) * time.Millisecond
 }

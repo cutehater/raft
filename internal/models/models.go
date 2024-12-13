@@ -21,13 +21,11 @@ type LogEntry struct {
 	Term  int64 `json:"term"`
 }
 
-func JSONResponse(w http.ResponseWriter, status int, body interface{}) {
+func JSONOKResponse(w http.ResponseWriter, body interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(body); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-		return
 	}
-	w.WriteHeader(status)
 }
 
 func (e *LogEntry) ToProto() *rpc.Entry {

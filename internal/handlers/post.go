@@ -22,6 +22,10 @@ func MakePostHandler(v *raft.Node) http.HandlerFunc {
 		}
 
 		v.Mu.Lock()
+		if v.Role != raft.RoleLeader {
+			http.Error(w, "Invalid request: node is not master", http.StatusBadRequest)
+			return
+		}
 		if _, ok := v.Data[resource.Id]; ok {
 			v.Mu.Unlock()
 			http.Error(w, errResourceExists.Error(), http.StatusBadRequest)
@@ -41,6 +45,6 @@ func MakePostHandler(v *raft.Node) http.HandlerFunc {
 		v.LastCommittedIdx++
 		v.Mu.Unlock()
 
-		models.JSONResponse(w, http.StatusCreated, resource)
+		w.WriteHeader(http.StatusCreated)
 	}
 }
