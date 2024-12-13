@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -22,6 +23,7 @@ func (v *Node) commitChanges(lastCommitIdx int64, lastCommitTerm int64) bool {
 	}
 
 	for i := v.LastCommittedIdx + 1; i <= lastCommitIdx; i++ {
+		fmt.Printf("Commit idx: %d, id: %d value: %s\n", i, v.DataLog[i].Id, v.DataLog[i].Value)
 		if v.DataLog[i].Value == "" {
 			delete(v.Data, v.DataLog[i].Id)
 		} else {

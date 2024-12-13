@@ -12,6 +12,10 @@ func (follower *Node) AppendEntries(ctx context.Context, req *rpc.AppendEntriesI
 	follower.Mu.Lock()
 	defer follower.Mu.Unlock()
 
+	/* if follower.Id == 0 {
+		fmt.Println(req)
+	} */
+
 	if follower.Term > req.Term {
 		return &rpc.AppendEntriesOut{
 			Success: false,
@@ -26,8 +30,16 @@ func (follower *Node) AppendEntries(ctx context.Context, req *rpc.AppendEntriesI
 
 	follower.needToStartElection = false
 
-	if req.PrevLogIdx < 0 || int(req.PrevLogIdx) >= len(follower.DataLog) ||
-		follower.DataLog[req.PrevLogIdx].Term != req.PrevLogTerm {
+	// process heartbeat
+	if req.PrevLogIdx < 0 {
+		follower.commitChanges(req.LeaderCommitIdx, req.PrevLogTerm)
+		return &rpc.AppendEntriesOut{
+			Success: true,
+			Term:    follower.Term,
+		}, nil
+	}
+
+	if int(req.PrevLogIdx) >= len(follower.DataLog) || follower.DataLog[req.PrevLogIdx].Term != req.PrevLogTerm {
 		return &rpc.AppendEntriesOut{
 			Success: false,
 			Term:    follower.Term,

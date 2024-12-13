@@ -10,7 +10,7 @@ import (
 	"hw2/internal/rpc"
 )
 
-func NewNode(id int64, GRPCNodesAddress []string, HTTPNodesAddress []string) *Node {
+func NewNode(id int64, isLeader bool, GRPCNodesAddress []string, HTTPNodesAddress []string) *Node {
 	node := &Node{
 		Mu:               sync.RWMutex{},
 		Role:             RoleFollower,
@@ -41,7 +41,7 @@ func NewNode(id int64, GRPCNodesAddress []string, HTTPNodesAddress []string) *No
 	}
 	wg.Wait()
 
-	if id == 0 {
+	if isLeader {
 		node.Role = RoleLeader
 		go node.sendHeartbeats()
 	}
@@ -82,13 +82,15 @@ func (leader *Node) UpdateFollower(followerIdx int, logEntryIdx int64) {
 		}
 		if req.PrevLogIdx >= 0 {
 			req.PrevLogTerm = leader.DataLog[req.PrevLogIdx].Term
+		} else {
+			req.PrevLogTerm = leader.DataLog[leader.LastCommittedIdx].Term
 		}
 		leader.Mu.RUnlock()
 
 		resp, err := leader.GrpcClients[followerIdx].AppendEntries(context.Background(), req)
 
 		if err != nil || resp == nil {
-			log.Printf("AppendEntries RPC call failed: %v", err)
+			continue
 		} else if !resp.Success {
 			leader.Mu.Lock()
 			if resp.Term > leader.Term {

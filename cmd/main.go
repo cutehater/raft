@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -34,8 +35,12 @@ var (
 )
 
 func main() {
+	isLeaderFlag := flag.Bool("leader", false, "Specify if the node is a leader")
+	flag.Parse()
+	isLeader := isLeaderFlag != nil && *isLeaderFlag
+
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: <command> <node index>")
+		fmt.Println("Usage: <command> <node index> [--leader]")
 		os.Exit(1)
 	}
 
@@ -45,7 +50,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	node := raft.NewNode(int64(id), GRPCNodesAddress, HTTPNodesAddress)
+	node := raft.NewNode(int64(id), isLeader, GRPCNodesAddress, HTTPNodesAddress)
 
 	go startGRPCServer(id, node)
 	go startHTTPServer(id, node)
