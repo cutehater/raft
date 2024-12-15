@@ -24,6 +24,7 @@ func (follower *Node) StartElectionTimeout() {
 				follower.needToStartElection = true
 				follower.Mu.Unlock()
 			}
+			ticker.Reset(getElectionTimeout())
 		}
 	}
 }

@@ -39,14 +39,9 @@ func main() {
 	flag.Parse()
 	isLeader := isLeaderFlag != nil && *isLeaderFlag
 
-	if len(os.Args) < 2 {
-		fmt.Println("Usage: <command> <node index> [--leader]")
-		os.Exit(1)
-	}
-
-	id, err := strconv.Atoi(os.Args[1])
+	id, err := strconv.Atoi(os.Args[len(os.Args)-1])
 	if err != nil || id >= len(GRPCNodesAddress) || id < 0 {
-		fmt.Println("Invalid node index")
+		fmt.Println("Usage: <command> [--leader] <node index>")
 		os.Exit(1)
 	}
 

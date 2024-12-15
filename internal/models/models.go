@@ -1,9 +1,6 @@
 package models
 
 import (
-	"encoding/json"
-	"net/http"
-
 	"hw2/internal/rpc"
 )
 
@@ -19,13 +16,6 @@ type LogEntry struct {
 	Id    Id    `json:"id"`
 	Value Value `json:"value"`
 	Term  int64 `json:"term"`
-}
-
-func JSONOKResponse(w http.ResponseWriter, body interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(body); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
 }
 
 func (e *LogEntry) ToProto() *rpc.Entry {

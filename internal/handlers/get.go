@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
@@ -59,6 +60,9 @@ func MakeReplicaReadHandler(v *raft.Node) http.HandlerFunc {
 			return
 		}
 
-		models.JSONOKResponse(w, resource)
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(resource); err != nil {
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		}
 	}
 }

@@ -49,6 +49,6 @@ func MakeUpdateHandler(v *raft.Node) http.HandlerFunc {
 		v.LastCommittedIdx++
 		v.Mu.Unlock()
 
-		models.JSONOKResponse(w, resource)
+		w.WriteHeader(http.StatusOK)
 	}
 }

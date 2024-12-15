@@ -12,16 +12,13 @@ func (follower *Node) AppendEntries(ctx context.Context, req *rpc.AppendEntriesI
 	follower.Mu.Lock()
 	defer follower.Mu.Unlock()
 
-	/* if follower.Id == 0 {
-		fmt.Println(req)
-	} */
-
 	if follower.Term > req.Term {
 		return &rpc.AppendEntriesOut{
 			Success: false,
 			Term:    follower.Term,
 		}, nil
 	} else if follower.Term < req.Term {
+		fmt.Printf("Updated to term %d and leader %d\n", req.Term, req.LeaderId)
 		follower.Role = RoleFollower
 		follower.Term = req.Term
 		follower.LeaderId = req.LeaderId
@@ -32,9 +29,8 @@ func (follower *Node) AppendEntries(ctx context.Context, req *rpc.AppendEntriesI
 
 	// process heartbeat
 	if req.PrevLogIdx < 0 {
-		follower.commitChanges(req.LeaderCommitIdx, req.PrevLogTerm)
 		return &rpc.AppendEntriesOut{
-			Success: true,
+			Success: follower.commitChanges(req.LeaderCommitIdx, req.PrevLogTerm),
 			Term:    follower.Term,
 		}, nil
 	}
@@ -55,10 +51,9 @@ func (follower *Node) AppendEntries(ctx context.Context, req *rpc.AppendEntriesI
 
 	commitTo := req.LeaderCommitIdx
 	commitTo = min(commitTo, int64(len(follower.DataLog))-1)
-	follower.commitChanges(commitTo, follower.DataLog[commitTo].Term)
 
 	return &rpc.AppendEntriesOut{
-		Success: true,
+		Success: follower.commitChanges(commitTo, follower.DataLog[commitTo].Term),
 		Term:    follower.Term,
 	}, nil
 }

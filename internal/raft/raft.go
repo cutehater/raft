@@ -2,7 +2,7 @@ package raft
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"sync"
 	"time"
 
@@ -94,14 +94,14 @@ func (leader *Node) UpdateFollower(followerIdx int, logEntryIdx int64) {
 		} else if !resp.Success {
 			leader.Mu.Lock()
 			if resp.Term > leader.Term {
-				log.Printf("Stale leader: %v", leader.Id)
+				fmt.Printf("Updated to term %d and leader %d\n", req.Term, req.LeaderId)
 				leader.Term = resp.Term
 				leader.Role = RoleFollower
 				leader.Mu.Unlock()
 				break
 			} else if logEntryIdx > 0 {
 				logEntryIdx--
-				req.Entries = append([]*rpc.Entry{leader.DataLog[logEntryIdx].ToProto()}, req.Entries...)
+				entries = append([]*rpc.Entry{leader.DataLog[logEntryIdx].ToProto()}, entries...)
 			}
 			leader.Mu.Unlock()
 		} else {
